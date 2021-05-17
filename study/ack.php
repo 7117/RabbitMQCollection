@@ -11,33 +11,37 @@ $channel = $connection->channel();
 
 //保存订单消息到数据库；是否将【成功的消息】推送到消息队列
 
-//推送成功：设置ack内容
-// 用AMQPMessage作为第一个参数设置一个处理程序，该处理程序调用由服务器确认的任何消息。
+
+//ack因素1：开启确认模式
+$channel->confirm_select();
+//ack因素2：进行监听成功与失败
+$channel->wait_for_pending_acks();
+
+//推送成功会触发此个函数：设置ack内容
+//ack因素3：用AMQPMessage作为第一个参数设置一个处理程序，该处理程序调用由服务器确认的任何消息。
 $channel->set_ack_handler(
     function (AMQPMessage $message) {
         echo "success" . $message->body . PHP_EOL;
     }
 );
 
-// 推送失败：设置ack内容
-$channel->set_ack_handler(
+//ack因素3：推送失败会触发此个函数：设置ack内容
+$channel->set_nack_handler(
     function (AMQPMessage $message) {
         echo "fail" . $message->body . PHP_EOL;
     }
 );
-//开启确认模式
-$channel->confirm_select();
 
 $channel->exchange_declare($exchange, AMQPExchangeType::FANOUT, false, false, true);
 
+//此处是单个内容
 $i = 1;
-
 $msg = new AMQPMessage($i, ['content_type' => 'text/plain']);
 $channel->basic_publish($msg, $exchange);
-//进行监听成功与失败
-$channel->wait_for_pending_acks();
 $channel->close();
 
+
+//此处是多个内容
 // while ($i <= 11) {
 //     $msg = new AMQPMessage($i, ['content_type' => 'text/plain']);
 //     $channel->basic_publish($msg, $exchange);
